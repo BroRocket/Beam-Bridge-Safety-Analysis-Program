@@ -1,0 +1,939 @@
+import matplotlib.pyplot as plt
+import math
+from pylab import loadtxt
+
+def determine_point_loads(starting_point, bridge_length):
+  '''The function accepts the location of the train in mm from the start of the bridge and then calculates the location in mm from the start of the bridge that each of the six point loads will be at'''
+
+  loads = []
+  '''Many if statements using booleans compares the location of the train with the train dimensions to return values of the location of the point loads and puts it in a list'''
+  if starting_point < 52:
+    return None
+  elif starting_point < 228:
+    loads = [starting_point - 52]
+  elif starting_point < 392:
+    loads = [starting_point - 228, starting_point - 52]
+  elif starting_point < 568:
+    loads = [starting_point - 392, starting_point - 228, starting_point - 52]
+  elif starting_point < 732:
+    loads = [starting_point - 568, starting_point - 392, starting_point - 228, starting_point - 52]
+  elif starting_point < 908:
+    loads = [starting_point - 732, starting_point - 568, starting_point - 392, starting_point - 228, starting_point - 52]
+
+
+  elif starting_point < bridge_length + 52:
+    loads = [starting_point - 908, starting_point - 732, starting_point - 568, starting_point - 392, starting_point - 228, starting_point - 52]
+
+  elif starting_point < bridge_length + 228:
+    loads = [starting_point - 908, starting_point - 732, starting_point - 568, starting_point - 392, starting_point - 228]
+
+  elif starting_point < bridge_length + 392:
+    loads = [starting_point - 908, starting_point - 732, starting_point - 568, starting_point - 392]
+
+  elif starting_point < bridge_length + 568:
+    loads = [starting_point - 908, starting_point - 732, starting_point - 568]
+
+
+  elif starting_point < bridge_length + 732:
+    loads = [starting_point - 908, starting_point - 732]
+
+  elif starting_point < bridge_length + 908:
+    loads = [starting_point - 908]
+  else:
+    return None
+
+  '''Returns the list of point loads'''
+  return loads
+
+
+def reaction_forces(load, starting_point, length):
+  '''This function takes in the load load of the train, the starting location of the train and the length of the bridge. It then calls the determine point loads function and calculates the load at each point load. Using the locations of the oint loads and the loads at each point it performs a sum of moments caluclation and some of forces in the y direction to determine the reaction forces at the pin and roller. These reaction forces are then stored in a list and returned'''
+
+  train_point_loads = load / 6
+  point_loads = determine_point_loads(starting_point, length)
+  moment_about_left = 0
+  reaction_force_left = 0
+  reaction_force_right = 0
+  reaction_forces_list = []
+  for i in point_loads:
+    moment_about_left += i * train_point_loads
+
+  reaction_force_right = moment_about_left / length
+
+  reaction_force_left = (train_point_loads * len(point_loads)) - reaction_force_right
+
+  reaction_forces_list = [reaction_force_left, reaction_force_right]
+
+
+  return reaction_forces_list
+
+
+def forces(load, starting_point, bridge_length):
+  '''This function accepts the load of the train the starting location of the bridge and then takes in the bridge lenght as well. It then calls the reaction forces fucntion and determine point load function to get the list of reaction forces and the list of point load locations. The it sets the first element of a list called forces list to the first reaction force. It then runs a for loop that for every point load in the list it subtracts the point load at that point load location from the original reaction force. This gives it a ist of the shear forces at each point load and it reurns this list'''
+
+  train_point_loads = load / 6
+  reactions = reaction_forces(load, starting_point, bridge_length)
+  point_load_location = determine_point_loads(starting_point, bridge_length)
+
+  forces_list = [reactions[0]]
+  for i in range(1, (len(point_load_location) + 1)):
+    forces_list.append(reactions[0] - i*train_point_loads)
+  forces_list.append(0)
+
+  return forces_list
+
+def shear_force_at_x(load, starting_point, bridge_length):
+  '''This function accepts the trains load, the starting location of the train, and the bridge length. It then creates a list called point loads and makes the first element zero, it then calls determin point loads to get a list of point load locations. Then using a for loop it adds each of the point load locations to point loads list and then appends the bridge length to that list. NOw it has a list of all locations where ther should be a chnage in shear force on the SFD. It then calls forces list so it can get a list of the shear force that will be on each of those points on the sfd. It then runs a nested for loop where it first runs through eachs mm of the bridge length plus two and if that distance is equal to a point load location it sets a variable called prev_loc to that distance. Then the next for loop inside that first one checks if the list point_loads at index j is equal to the prev_loc then it set the index variable equal to j fianlly before changing the distance i of the for loop it appends forces_list at the index of the variable index to a list called shear_force. This list is a list of the shear force at distance x from the start of the bridge and is the y values for the sfd. THe reason the firs for loop runs until bridge length +2 is because if he train is on its way off the bridge using the plus two alows the code to get the force of the point load that could be right on the pin if the trains wheel is right on it. Finally it runs a for loop that creates the x values for the graph by runing the loop in the same range as the previous for loop. FInally the program plots the sfd and then also retunrs the shear_force list.'''
+
+  point_loads = []
+  point_loads.append(0)
+  load_loc = determine_point_loads(starting_point, bridge_length)
+  for i in range(len(load_loc)):
+    point_loads.append(load_loc[i])
+  if bridge_length not in point_loads:
+    point_loads.append(bridge_length)
+
+  forces_list = forces(load, starting_point, bridge_length)
+
+  shear_force = []
+
+  for i in range(int(bridge_length)+ 2):
+    if i in point_loads:
+      prev_loc = i
+
+    for j in range(len(point_loads)):
+      if point_loads[j] == prev_loc:
+        index = j
+
+    shear_force.append(forces_list[index])
+
+  x = []
+  for i in range(int(bridge_length)+ 2):
+   x.append(i)
+
+  plt.plot(x, shear_force)
+  plt.xlabel("Length in mm from start of bridge")
+  plt.ylabel("-      Shear Force in Newtons      +")
+  plt.title("Shear Force Diagram")
+  plt.show()
+
+
+
+  return shear_force
+
+def moment_at_x(load, starting_point, bridge_length):
+  '''This function accepts the load of the train, the trains starting location and the bridge length. The fucntion runs the shear force at x fucntion to get a list of shear forces. It thenruns a for loop in the range of the bridge length, for each distnace of one mm that the loop travels through it adds the shear force at i - 1 if i gretaer or equal to one. It then appends the ans to a list called moments. Menaing the loop essentially sums the moments at the distance along the bridge and appends it to a list of moments. This is a list of the y values for the bmd. It then runs a for loop the returns x values for the length of the bridge. THen it plots the x list values against the moment list and returns the moennt list as well'''
+
+  moment = []
+  shear_forces = shear_force_at_x(load, starting_point, bridge_length)
+
+  ans = 0
+
+  for i in range(int(bridge_length)):
+    if i >= 1:
+      ans += shear_forces[i-1]
+    moment.append(ans)
+
+  x = []
+  for i in range(int(bridge_length)):
+   x.append(i)
+
+  plt.plot(x, moment)
+  plt.xlabel("Length in mm from start of bridge")
+  plt.ylabel("-     Bending Force in Nmm     +")
+  plt.title("Bending Moment Diagram")
+  plt.show()
+
+  return moment
+
+
+def stress_tension_comp_max(I, y_bar, bridge_length, bridge_height, starting_point, load):
+  '''This funtion takes in the parameters of I, y bar and bridge height of the cross section. It also takes in the parameters of load of the train, bridge length, and train starting location. It then gets the distances of the max tension and compression locations from y bar and then calls the functions moment at x. Then it runs two different for loops which runs for the length of the bridge and caluclates stress at each location of the bridge length using M*y/I. Once it has each these stress values ofr stress and compression it appends them to seprate list and then returns these lists. Meaning it returns two list of max tension and compreession stress as a functions of x.'''
+
+
+  max_tension_stress = []
+  max_comp_stress = []
+
+  y_tension = y_bar
+  y_comp = bridge_height - y_bar
+  moment = moment_at_x(load, starting_point, bridge_length)
+
+  stress = 0
+
+  for i in range(int(bridge_length)):
+    stress = (moment[i] * y_tension) / I
+    max_tension_stress.append(stress)
+
+  for i in range(int(bridge_length)):
+    stress = (moment[i] * y_comp) / I
+    max_comp_stress.append(stress)
+
+  return max_tension_stress, max_comp_stress
+
+def tau_stress(Q_value, I, b, starting_point, bridge_length, load):
+  '''This function takes in the starting location of the train, the bridge length, and the train load. It also take sin the corss sections I value. Finally it takes in a list of Q values at the differnet locations where we want to analyze tau at such as glue joints and y bar, and it takes in the b value for each of those heigths as well. The function then calls shear_force_at_x and runs a for loop to find the maximum shear force from the list of shear forces returned by the called function. After that it runs a for loop for the length of the Q value list and uses V*Q/I*b to get the tau stress at each height we want to analyze. THese stresses are appended to a list and returned '''
+
+  tau_lists = []
+
+  shear_forces = shear_force_at_x(load, starting_point, bridge_length)
+  max_shear = 0
+  for i in shear_forces:
+    if abs(i) > max_shear:
+      max_shear = abs(i)
+
+  for i in range(len(Q_value)):
+    ans = (float(max_shear) * float(Q_value[i])) / (float(I) * float(b[i]))
+    tau_lists.append(ans)
+
+  return tau_lists
+
+
+def shear_buckling(t, b, a):
+  '''This function accepts the thickness of the web, the height of the web and the distance between diaphragms. Using these inputs it uses the equation for shear buckling to calculate the shear buckling cpacity for the bridge and returns the value'''
+  mew = 0.2
+  E = 4000
+
+  tau = ((5 * (math.pi ** 2) * E) / (12 * (1 - mew**2))) * (((t / b) ** 2) + ((t / a) ** 2))
+
+  return tau
+
+def buckling_case_1(t, b):
+  '''Accepts the thickness of the case buckling one plate and also the base of the plate. It then uses the formua for case 1 to calculate the case 1 buckling capacity and returns the value.'''
+  mew = 0.2
+  E = 4000
+
+  tau = ((4*(math.pi**2)*E) / (12 * (1 - mew**2))) * (t/b)**2
+
+  return tau
+
+def buckling_case_2(t, b):
+  '''Takes in the parameters of the plate thickness and plate base and uses the case 2 formula to calculate the bridges case 2 buckling capcity and returns this value '''
+  mew = 0.2
+  E = 4000
+
+  tau = ((0.425*(math.pi**2)*E) / (12 * (1 - mew**2))) * (t/b)**2
+
+  return tau
+
+def buckling_case_3(t, b):
+  '''Takes in the plates thickness and base and uses the case 3 buckling equation to solve for case 3 buckling capacity of the cross section and then return the value'''
+  mew = 0.2
+  E = 4000
+
+  tau = ((6*(math.pi**2)*E) / (12 * (1 - mew**2))) * ((t/b)**2)
+
+  return tau
+
+
+def y_bar_with_dementions(dementions):
+  '''Accepts a list filled with the dimentions of each area in the cross section. It then runs two for loops where one calculates the area times distance of the areas and the other calculates the area of each area. Then it divides the first by the secodn to get y bar and returns the value of y bar '''
+  top_y = 0
+  bottom_y = 0
+  length = 0
+  for i in dementions:
+    top_y += i[0]*i[1]*i[2]*((i[1]/2) + length)
+    length += i[1]
+
+  for j in dementions:
+    bottom_y += j[0]*j[1]*j[2]
+  y = top_y/bottom_y
+
+  return y
+
+
+
+def Q(dementions, Q_height):
+  '''This function takes in a list with the dementions of the bridges and the hights to calculate Q at. The function calculates y bar and runs a while loop that determins the dementions of the section below the height Q will be calculated at. It then calculates the area of the new section and the y bar and returns Q, which is the area multiplied by the y bar of the full cross section minus the y bar of the smaller section'''
+
+  length = 0
+  new_dementions = []
+  index = 0
+  temp = ()
+  y_bar = y_bar_with_dementions(dementions)
+
+
+
+  while length + dementions[index][1] < Q_height:
+    new_dementions.append(dementions[index])
+    length += dementions[index][1]
+    index += 1
+
+  temp = (dementions[index][0], Q_height - length, dementions[index][2])
+  new_dementions.append(temp)
+
+
+  y_bar_section = y_bar_with_dementions(new_dementions)
+
+
+  Area = 0
+  for i in new_dementions:
+    Area += i[0]*i[1]*i[2]
+
+  Q_return = Area*(y_bar - y_bar_section)
+  return Q_return
+
+
+
+def I_calculations(dementions):
+  '''This function takes in a list that contains the bridge dementions. It then multiplies the base by the height cubed divided by 12, then adds the area of the section times the distance between the centroids. If there are multiple areas at this height with the same dementions, the number is multiplied the number of cross sections with that area. This is done for every list in the list dementions'''
+
+  y_bar = y_bar_with_dementions(dementions)
+
+  I = 0
+  length = 0
+  for i in dementions:
+    I += ((i[0]*(i[1]**3)/12) +(i[0]*i[1])*((i[1]/2 + length) - y_bar)**2)*i[2]
+    length += i[1]
+
+  return I
+
+def factor_of_safety(tens_stress, comp_stress, shear_stress_list, shear_buckling_stress, case1, case2, case3, max_shear, max_moment, Q_centroid, I, b_centroid, y_bar, bridge_height, dementions):
+  '''This function computes the factors of safty for all eight cases being consitered. The function iterats through the list givin as parameters, and divides the relative capacities by the elements of the lists and appends the result to the factor of safty list for that case of failure'''
+
+  mat_tens_strength = 30
+  mat_comp_strength = 6
+  mat_shear_strength = 4
+  cement_shear_strength = 2
+
+  fos_tens = []
+  fos = 0
+  for i in tens_stress:
+    if i != 0:
+      fos = mat_tens_strength / i
+      fos_tens.append(fos)
+
+  fos_comp = []
+  fos = 0
+  for i in comp_stress:
+    if i != 0:
+      fos = mat_comp_strength / i
+      fos_comp.append(fos)
+
+
+  max_shear_stress = 0
+  for i in shear_stress_list:
+    if i > max_shear_stress:
+      max_shear_stress = i
+  shear_stress_list.remove(max_shear_stress)
+
+  fos_shear_list = []
+  fos = 0
+  for i in shear_stress_list:
+    if i == 0:
+      fos_shear_list.append(0)
+    else:
+      fos = cement_shear_strength / i
+      fos_shear_list.append(fos)
+
+
+
+  fos_shear_list.append(mat_shear_strength / max_shear_stress)
+
+  if max_moment == 0:
+    fos_shear_buckling = 0
+    fos_case1 = 0
+    fos_case2 = 0
+    fos_case3 = 0
+  else:
+    fos_shear_buckling = shear_buckling_stress / ((max_shear*Q_centroid)/(I*b_centroid))
+
+    fos_case1 = case1 / (max_moment*(bridge_height - y_bar)/I)
+
+    fos_case2 = case2 / (max_moment*(bridge_height - y_bar)/I)
+
+    fos_case3 = case3 /  ((max_moment*(bridge_height - y_bar - dementions[-1][-2]))/I)
+
+
+
+
+  return fos_tens, fos_comp, fos_shear_list, fos_shear_buckling, fos_case1, fos_case2, fos_case3
+
+
+def god_function():
+  '''This function reads through a text file to obtain the dementions of a bridge. First the total height is calculated by adding the height components of the list. Then the y_bar function is called to calculate y bar. A for loop iterated through the list using indicators 1 and zero to decide what heights to calculate Q at, then appends the the Q values to the list. the index of the largest Q value is recorded and the same index in the list of Q widths is recorded for the Q at the centroid. The function then calls shear_force_at_x and stores the value in a list. The mamimum element from the list is saved as shear force max. The same is done for moment_at_x, stress_tension_comp_max and shear_stresses. The thickness of the web is obtained comparing the lengths of the pieces and saving the width of the piece with the largest height. The functions for shear buckling and buckling cases 1, 2 and 3 are called and their lists stored to variables. The function factor_of_safety is called with the apropreat parameters and the list returned'''
+
+  load = 400
+  starting_point = float(input("What is the trains starting point?: "))
+  bridge_length = int(input("What is the bridge length?: "))
+  diaphragm_dist = float(input("What is the distance between diaphragms?: "))
+
+  dementions = []
+  glue_list = []
+  temp = ()
+  glue_temp = ()
+
+  filename = "BridgeDimensions.txt"
+
+  data = loadtxt(filename, usecols=(0,1,2,3,4,5,6), skiprows=1, unpack=True)
+  for i in range(len(data[0])):
+    temp = (float(data[0][i]), float(data[1][i]), float(data[2][i]))
+    glue_temp = (data[5][i], data[6][i])
+    dementions.append(temp)
+    glue_list.append(glue_temp)
+
+
+  b_buckling = []
+  t_buckling = []
+  for i in range(len(data[3])):
+    b_buckling.append(data[3][i])
+    t_buckling.append(data[4][i])
+
+
+  bridge_height = 0
+  for i in range(len(dementions)):
+    bridge_height += dementions[i][1]
+
+  print("The Bridge Height = ", bridge_height)
+
+
+  y_bar = y_bar_with_dementions(dementions)
+  print("Y Bar = ", y_bar)
+  I =  I_calculations(dementions)
+
+
+  Q_height = []
+  b = []
+  height = 0
+  width = 0
+  for i in range(len(dementions)):
+    if (dementions[i][1] + height) > y_bar:
+       if y_bar not in Q_height:
+         Q_height.append(y_bar)
+         width = dementions[i][0] * dementions[i][2]
+         b.append(width)
+
+    if glue_list[i][0] == 0 and glue_list[i][1] == 0:
+      height += dementions[i][1]
+
+    if glue_list[i][0] == 1 and glue_list[i][1] == 0:
+      height += dementions[i][1]
+      Q_height.append(height)
+      if dementions[i][0] < dementions[i+1][0]:
+        width = dementions[i][0] * dementions[i][2]
+        b.append(width)
+      else:
+        width = dementions[i+1][0] * dementions[i+1][2]
+        b.append(width)
+
+    if glue_list[i][0] == 0 and glue_list[i][1] == 1:
+      n_glue_points = (dementions[i][1] / 1.27) - 1
+      for j in range(int(n_glue_points)):
+        height += 1.27
+        Q_height.append(height)
+      height += 1.27
+      width = dementions[i][0] * dementions[i][2]
+      b.append(width)
+
+  Q_list = []
+  for i in Q_height:
+    Q_list.append(Q(dementions, i))
+
+  max_Q = 0
+  ind = 0
+  for i in range(len(Q_list)):
+    if Q_list[i] > max_Q:
+      max_Q = Q_list[i]
+      ind = i
+
+  b_centroid = b[ind]
+
+  print("I is = ", I)
+  print("Q is = ", Q_list)
+
+  shear = shear_force_at_x(load, starting_point, bridge_length)
+  max_shear = 0
+  for i in shear:
+    if abs(i) > max_shear:
+      max_shear = abs(i)
+  print("Max shear", max_shear)
+
+
+  moments = moment_at_x(load, starting_point, bridge_length)
+  max_moment = 0
+  for i in moments:
+    if i > max_moment:
+      max_moment = i
+  print("Max moment:", max_moment)
+
+
+  stress_tens, stress_comp = stress_tension_comp_max(I, y_bar, bridge_length, bridge_height, starting_point, load)
+  max_stress_tens = 0
+  max_stress_comp = 0
+
+  for i in stress_tens:
+    if abs(i) > abs(max_stress_tens):
+      max_stress_tens = i
+
+  print("Max Tension Stres = ", max_stress_tens)
+
+  for j in stress_comp:
+    if abs(j) > abs(max_stress_comp):
+      max_stress_comp = j
+
+  print("Max Compresion Stress = ", max_stress_comp)
+
+
+  shear_stresses = tau_stress(Q_list, I, b, starting_point, bridge_length, load)
+  print("Shear Stresses = ", shear_stresses)
+
+  t_web_ind = 0
+  max_h = 0
+  for i in range(len(dementions)):
+    if dementions[i][1] > max_h:
+      max_h = dementions[i][1]
+      t_web_ind = i
+  t_web = dementions[t_web_ind][0]
+  web_height = max_h
+
+
+  shear_buck = shear_buckling(t_web, diaphragm_dist, web_height)
+  print("Shear Buckling = ", shear_buck)
+
+  buckling_1 = buckling_case_1(t_buckling[0], b_buckling[0])
+  print("buckling case 1:", buckling_1)
+
+  buckling_2 = buckling_case_2(t_buckling[1], b_buckling[1])
+  print("buckling case 2:", buckling_2)
+
+  buckling_3 = buckling_case_3(t_buckling[2], b_buckling[2])
+  print("buckling case 3:", buckling_3)
+
+  fos_tens_list, fos_comp_list, fos_shear_list, fos_shear_buck, fos_case1, fos_case2, fos_case3 = factor_of_safety(stress_tens, stress_comp, shear_stresses, shear_buck, buckling_1, buckling_2, buckling_3, max_shear, max_moment, max_Q, I, b_centroid, y_bar, bridge_height, dementions)
+
+  fos_tens_min = 10000000
+  for i in fos_tens_list:
+    if i < fos_tens_min:
+      fos_tens_min = i
+
+  fos_comp_min = 10000000
+  for i in fos_comp_list:
+    if i < fos_comp_min:
+      fos_comp_min = i
+
+  print("FOS Max Tension: ", fos_tens_min)
+  print("FOS Max Compression", fos_comp_min)
+  print("FOS Shear(at locations to be examined in order entered): ", fos_shear_list)
+  print("FOS Shear Buckling: ", fos_shear_buck)
+  print("FOS Case 1 Buckling: ", fos_case1)
+  print("FOS Case 2 Buckling: ", fos_case2)
+  print("FOS Case 3 Buckling", fos_case3)
+
+def stress_tension_comp_max2(I, y_bar, bridge_length, bridge_height, starting_point, load):
+  '''This function generates a list of the compression and tension forces in the bridge. Using the parameters, the function calls moment_at_x2 and stores the generated list. every element of both lists is multiplied by the apropreate component of y bar and then divided by i. The results are appended to the lists max_tension_stress and max_comp_stress. Same as stress tension come mac function except it calls shear force at x2 and moment at x 2 '''
+
+  max_tension_stress = []
+  max_comp_stress = []
+
+  y_tension = y_bar
+  y_comp = bridge_height - y_bar
+  moment = moment_at_x2(load, starting_point, bridge_length)
+
+  stress = 0
+
+  for i in range(int(bridge_length)):
+    stress = (moment[i] * y_tension) / I
+    max_tension_stress.append(stress)
+
+  for i in range(int(bridge_length)):
+    stress = (moment[i] * y_comp) / I
+    max_comp_stress.append(stress)
+
+  return max_tension_stress, max_comp_stress
+
+def tau_stress2(Q_value, I, b, starting_point, bridge_length, load):
+  '''The function calls shear_force_at_x2 and stores the list to a variable. Each element of the list is then compared to find the maximum. Each element of the parameter Q_values is then multiplied by max_shear and divided by I and the corisponding b. The result is appended to the variable tau_list, which is returned at the end of the function. It is the same as Tau stress function but it call shear forc ea t x 2 and momment at x 2 '''
+
+  tau_lists = []
+
+  shear_forces = shear_force_at_x2(load, starting_point, bridge_length)
+  max_shear = 0
+  for i in shear_forces:
+    if abs(i) > max_shear:
+      max_shear = abs(i)
+
+  for i in range(len(Q_value)):
+    ans = (float(max_shear) * float(Q_value[i])) / (float(I) * float(b[i]))
+    tau_lists.append(ans)
+
+  return tau_lists
+
+def shear_force_at_x2(load, starting_point, bridge_length):
+  '''The function does the same this as shear_force_at_x except it doesn't create a graph. This is because the function is called multiple times in other functions and it was inconvenient to produce so many graphs.'''
+
+  point_loads = []
+  point_loads.append(0)
+  load_loc = determine_point_loads(starting_point, bridge_length)
+  for i in range(len(load_loc)):
+    point_loads.append(load_loc[i])
+  if bridge_length not in point_loads:
+    point_loads.append(bridge_length)
+
+  forces_list = forces(load, starting_point, bridge_length)
+
+  shear_force = []
+
+  for i in range(int(bridge_length) + 2):
+    if i in point_loads:
+      prev_loc = i
+
+    for j in range(len(point_loads)):
+      if point_loads[j] == prev_loc:
+        index = j
+
+    shear_force.append(forces_list[index])
+
+  return shear_force
+
+def moment_at_x2(load, starting_point, bridge_length):
+  '''This function was also created to limit the graphs being produced from later functions, it is an exact copy of moment at x without the graphing function'''
+
+  moment = []
+  shear_forces = shear_force_at_x2(load, starting_point, bridge_length)
+
+  ans = 0
+
+  for i in range(int(bridge_length)):
+    if i >= 1:
+      ans += shear_forces[i-1]
+    moment.append(ans)
+
+
+  return moment
+
+
+def god_function_2(dementions, bridge_length, diaphragm_dist, starting_point, load, y_bar, I, Q_list, max_Q, b, b_centroid, bridge_height, t_web, web_height, t_buckling, b_buckling):
+  '''shear_force_at_x2 and moment_at_x2 are called and their maximum element stored to a variable. stress_tension_comp_max2 is called and it's output stored to two lists, whos maximum values are stored as well. tau_stress, shear_buckling and buckling_case_1, buckling_case_2, buckling_case_3 are called and stored to the approprete variables. factor_of_safety is called with the previously generated lists and the maximum value of the first two lists are stored to variables. All FOS are returned'''
+
+  shear = shear_force_at_x2(load, starting_point, bridge_length)
+  max_shear = 0
+  for i in shear:
+    if abs(i) > max_shear:
+      max_shear = abs(i)
+
+  moments = moment_at_x2(load, starting_point, bridge_length)
+  max_moment = 0
+  for i in moments:
+    if i > max_moment:
+      max_moment = i
+
+  stress_tens, stress_comp = stress_tension_comp_max2(I, y_bar, bridge_length, bridge_height, starting_point, load)
+  max_stress_tens = 0
+  max_stress_comp = 0
+
+  for i in stress_tens:
+    if abs(i) > abs(max_stress_tens):
+      max_stress_tens = i
+
+  for j in stress_comp:
+    if abs(j) > abs(max_stress_comp):
+      max_stress_comp = j
+
+  shear_stresses = tau_stress2(Q_list, I, b, starting_point, bridge_length, load)
+
+  shear_buck = shear_buckling(t_web, diaphragm_dist, web_height)
+
+  buckling_1 = buckling_case_1(t_buckling[0], b_buckling[0])
+
+  buckling_2 = buckling_case_2(t_buckling[1], b_buckling[1])
+
+  buckling_3 = buckling_case_3(t_buckling[2], b_buckling[2])
+
+  fos_tens_list, fos_comp_list, fos_shear_list, fos_shear_buck, fos_case1, fos_case2, fos_case3 = factor_of_safety(stress_tens, stress_comp, shear_stresses, shear_buck, buckling_1, buckling_2, buckling_3, max_shear, max_moment, max_Q, I, b_centroid, y_bar, bridge_height, dementions)
+
+
+
+  fos_tens_min = 10000000
+  for i in fos_tens_list:
+    if i > 0:
+      if i < fos_tens_min:
+        fos_tens_min = i
+
+
+  fos_comp_min = 10000000
+  for i in fos_comp_list:
+    if i < fos_comp_min:
+      fos_comp_min = i
+
+
+  return fos_tens_min, fos_comp_min, fos_shear_list, fos_shear_buck, fos_case1, fos_case2, fos_case3, max_shear, max_moment
+
+
+def supreme_overloard_function():
+  '''This function obtains the dementions of a bridge from a text file. The b and t values required to calculate Q are stored in the appropreate lists and the bridge height is calculated using the height component of the dementions list. A list of the heights Q must be calculated at is generated using indications in the dementions file. Q is then calculated at all the appropreate heights using the function Q. The maximum Q and the corisponding b are stored and the web thickness is obtained by comparting the relative heights of the sections and taking the base of the largest height. god_function_2 is then called for every milimetre in the bridge plus 908 and the reutnred values stored in their apropreate lists. The elements of the fos lists are multiplied by the same index of max_shear_x and max_moment_x and stored in the appropreate list the failure load is generated by caling the function failure_loads The lists of failure loads is returned.'''
+
+  bridge_length = float(input("What is the length of your bridge?: "))
+  diaphragm_dist = float(input("What is the distance between diaphragms: "))
+
+
+  load = 400
+
+  dementions = []
+  glue_list = []
+  temp = ()
+  glue_temp = ()
+
+  filename = "BridgeDimensions.txt"
+
+  data = loadtxt(filename, usecols=(0,1,2,3,4,5,6), skiprows=1, unpack=True)
+  for i in range(len(data[0])):
+    temp = (float(data[0][i]), float(data[1][i]), float(data[2][i]))
+    glue_temp = (data[5][i], data[6][i])
+    dementions.append(temp)
+    glue_list.append(glue_temp)
+
+
+  b_buckling = []
+  t_buckling = []
+  for i in range(len(data[3])):
+    b_buckling.append(data[3][i])
+    t_buckling.append(data[4][i])
+
+
+  bridge_height = 0
+  for i in range(len(dementions)):
+    bridge_height += dementions[i][1]
+
+  print("The Bridge Height = ", bridge_height)
+
+
+  y_bar = y_bar_with_dementions(dementions)
+  print("Y Bar = ", y_bar)
+  I =  I_calculations(dementions)
+
+
+  Q_height = []
+  b = []
+  height = 0
+  width = 0
+  for i in range(len(dementions)):
+    if (dementions[i][1] + height) > y_bar:
+       if y_bar not in Q_height:
+         Q_height.append(y_bar)
+         width = dementions[i][0] * dementions[i][2]
+         b.append(width)
+
+    if glue_list[i][0] == 0 and glue_list[i][1] == 0:
+      height += dementions[i][1]
+
+    if glue_list[i][0] == 1 and glue_list[i][1] == 0:
+      height += dementions[i][1]
+      Q_height.append(height)
+      if dementions[i][0] < dementions[i+1][0]:
+        width = dementions[i][0] * dementions[i][2]
+        b.append(width)
+      else:
+        width = dementions[i+1][0] * dementions[i+1][2]
+        b.append(width)
+
+    if glue_list[i][0] == 0 and glue_list[i][1] == 1:
+      n_glue_points = (dementions[i][1] / 1.27) - 1
+      for j in range(int(n_glue_points)):
+        height += 1.27
+        Q_height.append(height)
+      height += 1.27
+      width = dementions[i][0] * dementions[i][2]
+      b.append(width)
+
+
+
+  Q_list = []
+  for i in Q_height:
+    Q_list.append(Q(dementions, i))
+
+  max_Q = 0
+  ind = 0
+  for i in range(len(Q_list)):
+    if Q_list[i] > max_Q:
+      max_Q = Q_list[i]
+      ind = i
+
+  b_centroid = b[ind]
+
+  print("I is = ", I)
+  print("Q is = ", Q_list)
+
+
+
+  t_web_ind = 0
+  max_h = 0
+  for i in range(len(dementions)):
+    if dementions[i][1] > max_h:
+      max_h = dementions[i][1]
+      t_web_ind = i
+  t_web = dementions[t_web_ind][0]
+  web_height = max_h
+
+  tension_fos = []
+  compression_fos =[]
+  shear_glue_fos = []
+  shear_centroid_fos = []
+  shear_buckling_fos = []
+  buckling_case_1_fos = []
+  buckling_case_2_fos = []
+  buckling_case_3_fos = []
+  max_shear_x = []
+  max_moment_x = []
+
+  temp = ()
+  for i in range(53, int(bridge_length) + 908):
+    temp = god_function_2(dementions, bridge_length, diaphragm_dist, i, load, y_bar, I, Q_list, max_Q, b, b_centroid, bridge_height, t_web, web_height, t_buckling, b_buckling)
+
+    tension_fos.append(temp[0])
+    compression_fos.append(temp[1])
+    shear_centroid_fos.append(temp[2][-1])
+    temp[2].remove(temp[2][-1])
+    shear_glue_fos.append(min(temp[2]))
+    shear_buckling_fos.append(temp[3])
+    buckling_case_1_fos.append(temp[4])
+    buckling_case_2_fos.append(temp[5])
+    buckling_case_3_fos.append(temp[6])
+
+    max_shear_x.append(temp[7])
+    max_moment_x.append(temp[8])
+
+
+  M_fail_tens = []
+  M_fail_comp = []
+  M_fail_buckling_1 = []
+  M_fail_buckling_2 = []
+  M_fail_buckling_3 = []
+  V_fail_shear = []
+  V_fail_glue = []
+  V_fail_buckling = []
+
+
+  for i in range(len(tension_fos)):
+    M_fail_tens.append(tension_fos[i]*max_moment_x[i])
+    M_fail_comp.append(compression_fos[i]*max_moment_x[i])
+    M_fail_buckling_1.append(buckling_case_1_fos[i]*max_moment_x[i])
+    M_fail_buckling_2.append(buckling_case_2_fos[i]*max_moment_x[i])
+    M_fail_buckling_3.append(buckling_case_3_fos[i]*max_moment_x[i])
+    V_fail_shear.append(shear_centroid_fos[i]*max_shear_x[i])
+    V_fail_glue.append(shear_glue_fos[i]*max_shear_x[i])
+    V_fail_buckling.append(shear_buckling_fos[i]*max_shear_x[i])
+
+    failure_load = failure_loads(M_fail_tens, M_fail_comp, M_fail_buckling_1, M_fail_buckling_2, M_fail_buckling_3, V_fail_shear, V_fail_glue, V_fail_buckling, bridge_length)
+
+
+
+  return M_fail_tens, M_fail_comp, M_fail_buckling_1, M_fail_buckling_2, M_fail_buckling_3, V_fail_shear, V_fail_glue, V_fail_buckling
+
+
+
+def failure_loads(tension_fos, compression_fos, shear_glue_fos, shear_centroid_fos, shear_buckling_fos, buckling_case_1_fos, buckling_case_2_fos, buckling_case_3_fos, load):
+
+
+  min_m_fail_tens = min(tension_fos)
+  min_m_fail_comp = min(compression_fos)
+  min_m_fail_buckling_1 = min(buckling_case_1_fos)
+  min_m_fail_buckling_2 = min(buckling_case_2_fos)
+  min_m_fail_buckling_3 = min(buckling_case_3_fos)
+  min_v_fail_shear = min(shear_centroid_fos)
+  min_v_fail_glue = min(shear_glue_fos)
+  min_v_fail_buckling = min(shear_buckling_fos)
+
+
+
+
+  failure_load = float('inf')
+  fail_type = ""
+
+  if min_m_fail_tens*load < failure_load:
+    failure_load = min_m_fail_tens*load
+    fail_type = "Failure in Tension"
+
+  if min_m_fail_comp*load < failure_load:
+    failure_load = min_m_fail_comp*load
+    fail_type = "Failure in Compression"
+
+  if min_m_fail_buckling_1*load < failure_load:
+    failure_load = min_m_fail_buckling_1*load
+    fail_type = "Failure in buckling case 1"
+
+  if min_m_fail_buckling_2*load < failure_load:
+    failure_load = min_m_fail_buckling_2*load
+    fail_type = "Failure in buckling case 2"
+
+  if min_m_fail_buckling_3*load < failure_load:
+    failure_load = min_m_fail_buckling_3*load
+    fail_type = "Failure in buckling case 3"
+
+
+  if min_v_fail_shear*load < failure_load:
+    failure_load = min_m_fail_buckling_3*load
+    fail_type = "Failure in shear at the centroid"
+
+  if min_v_fail_glue*load < failure_load:
+    failure_load = min_v_fail_glue*load
+    fail_type = "Failure in glue shear"
+
+  if min_v_fail_buckling*load < failure_load:
+    failure_load = min_v_fail_buckling*load
+    fail_type = "Failure in shear buckling"
+
+  return failure_load, fail_type
+
+
+def graph_capacities():
+  '''This function called supreme_overloard_function and stores the lists to the appropreate variables. Each list is then plotted against the trains position on the bridge. It uses a for loop to generate the x values for the plots'''
+
+  M_fail_tens, M_fail_comp, M_fail_buckling_1, M_fail_buckling_2, M_fail_buckling_3, V_fail_shear, V_fail_glue, V_fail_shear_buckling = supreme_overloard_function()
+
+
+  x = []
+  for i in range(len(M_fail_tens)):
+    x.append(i)
+
+  plt.plot(x, M_fail_tens)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Tension Bending Moment Capacity (N/mm)")
+  plt.title("Tension Bending Moment Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, M_fail_comp)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Compression Bending Moment Capacity (N/mm)")
+  plt.title("Compression Bending Moment Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, M_fail_buckling_1)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Case 1 Buckling Bending Moment Capacity (N/mm)")
+  plt.title("Case 1 Buckling Bennding MOment Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, M_fail_buckling_2)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Case 2 Buckling Bending Moment Capacity (N/mm)")
+  plt.title("Case 2 Buckling Bending Moment Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, M_fail_buckling_3)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Case 3 Buckling Bending Moment Capacity (N/mm)")
+  plt.title("Case 3 Buckling Bending Moment Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, V_fail_shear)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Centroid Shear Force Capacity (N)")
+  plt.title("Centroid Shear Force Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, V_fail_glue)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Glue Shear Force Capacity (N)")
+  plt.title("Glue Shear Force Capacity as a Function of Train Location")
+  plt.show()
+
+  plt.plot(x, V_fail_shear_buckling)
+  plt.xlabel("Train location from start of bridge (mm)")
+  plt.ylabel("Shear Buckling Shear Force Capacity (N)")
+  plt.title("Shear Buckling Shear Force Capacity as a Function of Train Location")
+  plt.show()
+
+
+if __name__ == "__main__":
+
+  god_function()
+  graph_capacities()
